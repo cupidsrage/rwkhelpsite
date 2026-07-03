@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Lore Keeper — Local RWK Oracle</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=IM+Fell+English+SC&family=Alegreya:ital,wght@0,400;0,500;0,700;1,400&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --soot: #141009;
+    --panel: #1e1710;
+    --panel-edge: #35291a;
+    --parchment: #e8dcc3;
+    --parchment-dim: #a89778;
+    --ash-gold: #c9a227;
+    --keeper-red: #d4604a;
+    --keeper-red-dim: rgba(212, 96, 74, 0.12);
+    --player-blue: #7fb2e0;
+    --player-blue-dim: rgba(127, 178, 224, 0.10);
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--soot);
+    background-image:
+      radial-gradient(ellipse at 50% -10%, rgba(201,162,39,0.07), transparent 55%),
+      radial-gradient(ellipse at 50% 115%, rgba(212,96,74,0.05), transparent 50%);
+    color: var(--parchment);
+    font-family: 'Alegreya', Georgia, serif;
+    font-size: 17px;
+    line-height: 1.55;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  header {
+    width: 100%; max-width: 860px;
+    padding: 26px 20px 14px;
+    text-align: center;
+    border-bottom: 1px solid var(--panel-edge);
+  }
+  header h1 {
+    font-family: 'IM Fell English SC', serif;
+    font-weight: 400;
+    font-size: clamp(1.7rem, 4.5vw, 2.4rem);
+    letter-spacing: 0.06em;
+    color: var(--ash-gold);
+    text-shadow: 0 0 24px rgba(201,162,39,0.25);
+  }
+  #kbline {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    color: var(--parchment-dim);
+    margin-top: 6px;
+    text-transform: uppercase;
+  }
+  #log { width: 100%; max-width: 860px; flex: 1; overflow-y: auto; padding: 22px 20px 10px; scroll-behavior: smooth; }
+  .msg { margin-bottom: 18px; animation: rise 0.25s ease-out; }
+  @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  .speaker { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 5px; }
+  .msg.player .speaker { color: var(--player-blue); }
+  .msg.keeper .speaker { color: var(--keeper-red); }
+  .bubble { border: 1px solid var(--panel-edge); border-radius: 3px; padding: 13px 16px; background: var(--panel); }
+  .msg.player .bubble { background: var(--player-blue-dim); border-color: rgba(127,178,224,0.3); border-left: 3px solid var(--player-blue); }
+  .msg.keeper .bubble { background: var(--keeper-red-dim); border-color: rgba(212,96,74,0.28); border-left: 3px solid var(--keeper-red); }
+  .msg.keeper.error .bubble { border-left-color: #888; background: rgba(255,255,255,0.03); }
+  .bubble p { margin-bottom: 0.7em; }
+  .bubble p:last-child { margin-bottom: 0; }
+  .bubble a { color: var(--ash-gold); text-decoration-color: rgba(201,162,39,0.4); word-break: break-all; }
+  .bubble a:hover { text-decoration-color: var(--ash-gold); }
+  .bubble strong { color: #fff; font-weight: 700; }
+  .bubble code { font-family: var(--mono); font-size: 0.83em; background: rgba(201,162,39,0.12); color: var(--ash-gold); padding: 1px 5px; border-radius: 3px; }
+  .bubble ul, .bubble ol { margin: 0.4em 0 0.7em 1.3em; }
+  .bubble li { margin-bottom: 0.25em; }
+  .searching { font-family: 'IM Fell English', serif; font-style: italic; color: var(--parchment-dim); }
+  .searching::after { content: ''; display: inline-block; width: 1.2em; animation: dots 1.4s steps(4, end) infinite; overflow: hidden; vertical-align: bottom; }
+  @keyframes dots { 0% { content: ''; } 25% { content: '.'; } 50% { content: '..'; } 75% { content: '...'; } }
+  #starters { width: 100%; max-width: 860px; padding: 0 20px 8px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  #starters button {
+    font-family: var(--mono); font-size: 0.74rem; color: var(--parchment-dim);
+    background: transparent; border: 1px solid var(--panel-edge); border-radius: 999px;
+    padding: 6px 13px; cursor: pointer; transition: color 0.15s, border-color 0.15s;
+  }
+  #starters button:hover, #starters button:focus-visible { color: var(--ash-gold); border-color: var(--ash-gold); outline: none; }
+  #composer { width: 100%; max-width: 860px; display: flex; gap: 10px; padding: 12px 20px 24px; }
+  #input {
+    flex: 1; background: var(--panel); border: 1px solid var(--panel-edge); border-radius: 3px;
+    color: var(--parchment); font-family: 'Alegreya', Georgia, serif; font-size: 1rem;
+    padding: 12px 14px; resize: none; min-height: 48px; max-height: 140px;
+  }
+  #input:focus { outline: none; border-color: var(--ash-gold); }
+  #input::placeholder { color: #6b5f49; font-style: italic; }
+  #send {
+    font-family: 'IM Fell English SC', serif; font-size: 1.02rem; letter-spacing: 0.05em;
+    background: var(--ash-gold); color: #1a1408; border: none; border-radius: 3px;
+    padding: 0 22px; cursor: pointer; transition: filter 0.15s;
+  }
+  #send:hover:not(:disabled) { filter: brightness(1.12); }
+  #send:disabled { opacity: 0.45; cursor: not-allowed; }
+  #keyline {
+    width: 100%; max-width: 860px;
+    padding: 0 20px 18px;
+    display: flex; align-items: center; gap: 10px;
+    font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em;
+    color: var(--parchment-dim);
+  }
+  #keybtn {
+    font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em;
+    color: var(--parchment-dim); background: transparent;
+    border: 1px solid var(--panel-edge); border-radius: 999px;
+    padding: 4px 11px; cursor: pointer;
+  }
+  #keybtn:hover, #keybtn:focus-visible { color: var(--ash-gold); border-color: var(--ash-gold); outline: none; }
+  @media (prefers-reduced-motion: reduce) { .msg { animation: none; } #log { scroll-behavior: auto; } }
+  @media (max-width: 520px) {
+    body { font-size: 16px; }
+    #composer { padding: 10px 12px 16px; }
+    #log, header, #starters { padding-left: 12px; padding-right: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>The Lore Keeper</h1>
+  <div id="kbline">loading knowledge base…</div>
+</header>
+
+<div id="log" aria-live="polite"></div>
+
+<div id="starters">
+  <button data-q="What's the best race and class combo for a new theurgist?">new theurg build</button>
+  <button data-q="If I have 99 Haste already, what's the most cost-effective way to skill faster without buying DsDs?">skill faster on a budget</button>
+  <button data-q="Which surface beasts could a fresh level-50 character realistically kill, and why?">beasts a noob can kill</button>
+  <button data-q="Is it worth equipping a light weapon as an archer? Reason it out.">light weapon math</button>
+</div>
+
+<div id="composer">
+  <textarea id="input" placeholder="Ask the Keeper — it will reason from the archives…" rows="1"></textarea>
+  <button id="send">Ask</button>
+</div>
+<div id="keyline">
+  <button id="keybtn">API key</button><span id="keystatus"></span>
+</div>
+
+<script>
+const log = document.getElementById('log');
+const input = document.getElementById('input');
+const send = document.getElementById('send');
+const starters = document.getElementById('starters');
+const kbline = document.getElementById('kbline');
+const history = [];
+
+fetch('/status').then(r => r.json()).then(s => {
+  kbline.textContent = `local mirror · ${s.pages} pages · ${s.chunks} chunks · ${s.model}`;
+}).catch(() => { kbline.textContent = 'status unavailable'; });
+
+function el(tag, cls, html) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (html !== undefined) e.innerHTML = html;
+  return e;
+}
+function escapeHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function renderMd(text) {
+  let t = escapeHtml(text);
+  t = t.replace(/`([^`]+)`/g, '<code>$1</code>');
+  t = t.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  t = t.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  t = t.replace(/(^|[^"(>])(https?:\/\/[^\s<)]+)/g, '$1<a href="$2" target="_blank" rel="noopener">$2</a>');
+  const blocks = t.split(/\n{2,}/).map(b => {
+    const lines = b.split('\n');
+    if (lines.every(l => /^\s*([-*]|\d+\.) /.test(l))) {
+      return '<ul>' + lines.map(l => '<li>' + l.replace(/^\s*([-*]|\d+\.) /,'') + '</li>').join('') + '</ul>';
+    }
+    return '<p>' + b.replace(/\n/g, '<br>') + '</p>';
+  });
+  return blocks.join('');
+}
+function addMsg(role, html, extraCls) {
+  const who = role === 'player' ? 'You' : 'Lore Keeper';
+  const m = el('div', 'msg ' + role + (extraCls ? ' ' + extraCls : ''));
+  m.appendChild(el('div', 'speaker', who));
+  m.appendChild(el('div', 'bubble', html));
+  log.appendChild(m);
+  log.scrollTop = log.scrollHeight;
+  return m;
+}
+
+let accessKey = sessionStorage.getItem('lk-access') || '';
+let userApiKey = localStorage.getItem('lk-api-key') || '';
+const keybtn = document.getElementById('keybtn');
+const keystatus = document.getElementById('keystatus');
+
+function refreshKeyStatus() {
+  keystatus.textContent = userApiKey
+    ? 'using your key (stored only in this browser) — questions cost you ~a cent'
+    : 'no key set — add your Anthropic API key to ask questions on your own account';
+}
+function promptForKey() {
+  const k = prompt('Paste your Anthropic API key (sk-ant-...).\nIt is stored ONLY in your browser (localStorage) and sent with your questions.\nGet one at console.anthropic.com. Leave empty to clear.');
+  if (k === null) return false;
+  userApiKey = k.trim();
+  if (userApiKey) localStorage.setItem('lk-api-key', userApiKey);
+  else localStorage.removeItem('lk-api-key');
+  refreshKeyStatus();
+  return !!userApiKey;
+}
+keybtn.addEventListener('click', promptForKey);
+refreshKeyStatus();
+
+async function ask(question, isRetry) {
+  if (!question.trim()) return;
+  if (!isRetry) {
+    starters.style.display = 'none';
+    addMsg('player', renderMd(question));
+  }
+  input.value = ''; input.style.height = 'auto';
+  send.disabled = true; input.disabled = true;
+  const pending = addMsg('keeper', '<span class="searching">Choosing the right pages, then reasoning</span>');
+
+  try {
+    const res = await fetch('/ask', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-access-key': accessKey,
+        'x-user-api-key': userApiKey
+      },
+      body: JSON.stringify({ question, history })
+    });
+    if (res.status === 401) {
+      const errData = await res.json().catch(() => ({}));
+      pending.remove();
+      if (errData.error === 'no_key') {
+        addMsg('keeper', '<p>' + escapeHtml(errData.message || 'An API key is needed.') + '</p>', 'error');
+        send.disabled = false; input.disabled = false;
+        if (promptForKey()) return ask(question, true);
+        return;
+      }
+      const pw = prompt('This oracle is password-protected. Enter the access password:');
+      if (pw) {
+        accessKey = pw;
+        sessionStorage.setItem('lk-access', pw);
+        send.disabled = false; input.disabled = false;
+        return ask(question, true);
+      }
+      addMsg('keeper', '<p>The archive door stays shut without the password.</p>', 'error');
+      return;
+    }
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    history.push({ role: 'user', content: question });
+    history.push({ role: 'assistant', content: data.answer });
+    let html = renderMd(data.answer);
+    if (data.consulted && data.consulted.length) {
+      html += '<p style="font-family:var(--mono);font-size:0.68rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--parchment-dim);margin-top:0.9em">consulted: ' +
+        data.consulted.map(c => '<a href="' + c.url + '" target="_blank" rel="noopener">' + escapeHtml(c.title) + '</a>').join(' · ') + '</p>';
+    }
+    pending.querySelector('.bubble').innerHTML = html;
+  } catch (err) {
+    pending.classList.add('error');
+    pending.querySelector('.bubble').innerHTML =
+      '<p>The archive door is stuck — the request failed.</p><p><code>' + escapeHtml(String(err.message || err)) + '</code></p>';
+  } finally {
+    send.disabled = false; input.disabled = false; input.focus();
+    log.scrollTop = log.scrollHeight;
+  }
+}
+
+send.addEventListener('click', () => ask(input.value));
+input.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); ask(input.value); } });
+input.addEventListener('input', () => { input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight, 140) + 'px'; });
+starters.addEventListener('click', e => { const b = e.target.closest('button[data-q]'); if (b) ask(b.dataset.q); });
+
+addMsg('keeper', '<p>Welcome, traveler. The full archives of Jimcav are mirrored on this very machine. Ask plainly, or ask things never written outright — I will gather what is recorded and reason my way to an answer, showing my work and my sources.</p>');
+input.focus();
+</script>
+</body>
+</html>
