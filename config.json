@@ -1,7 +1,7 @@
 {
   "anthropicApiKey": "sk-ant-REPLACE_ME",
   "model": "claude-sonnet-4-6",
-  "maxTokens": 1500,
+  "maxTokens": 900,
   "port": 7777,
   "historyTurns": 6,
   "crawl": {
@@ -22,10 +22,10 @@
     ]
   },
   "retrieval": {
-    "maxPagesPerQuestion": 6,
-    "maxCharsPerPage": 60000,
-    "maxContextChars": 140000,
-    "topK": 8,
+    "maxPagesPerQuestion": 3,
+    "maxCharsPerPage": 30000,
+    "maxContextChars": 70000,
+    "topK": 5,
     "maxChunksPerPage": 3
   },
   "routerModel": "claude-haiku-4-5-20251001",

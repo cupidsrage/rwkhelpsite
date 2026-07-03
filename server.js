@@ -103,7 +103,13 @@ async function callClaude(apiKey, model, maxTokens, system, messages) {
       'x-api-key': apiKey,
       'anthropic-version': '2023-06-01'
     },
-    body: JSON.stringify({ model, max_tokens: maxTokens, system, messages })
+    body: JSON.stringify({
+      model, max_tokens: maxTokens,
+      // cache_control: identical system prompts (incl. site map) are cached by
+      // Anthropic for ~5 min — repeat reads cost 10% of normal input price
+      system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
+      messages
+    })
   });
   const data = await res.json();
   if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
@@ -208,6 +214,20 @@ function rateLimited(ip) {
   return false;
 }
 
+// answer cache: identical fresh questions (no conversation history) are free repeats
+const ANSWER_CACHE_TTL = Number(process.env.ANSWER_CACHE_HOURS || 24) * 3600 * 1000;
+const answerCache = new Map(); // normalizedQuestion -> {answer, consulted, ts}
+const normalizeQ = q => q.toLowerCase().replace(/[^a-z0-9/ ]+/g, ' ').replace(/\s+/g, ' ').trim();
+function cacheGet(q) {
+  const hit = answerCache.get(normalizeQ(q));
+  if (hit && Date.now() - hit.ts < ANSWER_CACHE_TTL) return hit;
+  return null;
+}
+function cacheSet(q, answer, consulted) {
+  if (answerCache.size > 500) answerCache.delete(answerCache.keys().next().value);
+  answerCache.set(normalizeQ(q), { answer, consulted, ts: Date.now() });
+}
+
 const server = http.createServer(async (req, res) => {
   if (req.method === 'GET' && (req.url === '/' || req.url === '/index.html')) {
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
@@ -248,6 +268,17 @@ const server = http.createServer(async (req, res) => {
       if (!question || typeof question !== 'string') throw new Error('missing question');
       const trimmedHistory = history.slice(-config.historyTurns * 2);
 
+      // free repeat: only for fresh questions, so follow-up context stays correct
+      if (trimmedHistory.length === 0) {
+        const cached = cacheGet(question);
+        if (cached) {
+          console.log(`Q (cached): ${question}`);
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ answer: cached.answer, consulted: cached.consulted, cached: true }));
+          return;
+        }
+      }
+
       // Stage 1: Claude picks pages from the site map
       let selectedUrls = [];
       try { selectedUrls = await selectPages(apiKey, question, trimmedHistory); }
@@ -282,10 +313,12 @@ const server = http.createServer(async (req, res) => {
         }
       }
 
+      const consulted = fullPages.map(p => ({ title: p.title, url: p.url }));
+      if (trimmedHistory.length === 0 && !/^\s*MORE_PAGES:/im.test(text)) cacheSet(question, text, consulted);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({
         answer: text,
-        consulted: fullPages.map(p => ({ title: p.title, url: p.url }))
+        consulted
       }));
     } catch (err) {
       console.error('ask error:', err.message);
