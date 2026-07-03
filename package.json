@@ -1,0 +1,13 @@
+{
+  "name": "rwk-oracle",
+  "version": "1.0.0",
+  "description": "Local/Railway RWK oracle over a jimcav.com mirror",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "crawl": "node crawl.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

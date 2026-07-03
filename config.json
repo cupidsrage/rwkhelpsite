@@ -1,0 +1,33 @@
+{
+  "anthropicApiKey": "sk-ant-REPLACE_ME",
+  "model": "claude-sonnet-4-6",
+  "maxTokens": 1500,
+  "port": 7777,
+  "historyTurns": 6,
+  "crawl": {
+    "startUrl": "https://www.jimcav.com/",
+    "allowedHosts": [
+      "jimcav.com",
+      "www.jimcav.com"
+    ],
+    "delayMs": 800,
+    "maxPages": 300,
+    "seedUrls": [
+      "https://www.jimcav.com/drop_rates.htm",
+      "https://www.jimcav.com/ash.htm",
+      "https://www.jimcav.com/quests.htm",
+      "https://www.jimcav.com/skills.htm",
+      "https://www.jimcav.com/beasts.htm",
+      "https://www.jimcav.com/glossary.htm"
+    ]
+  },
+  "retrieval": {
+    "maxPagesPerQuestion": 6,
+    "maxCharsPerPage": 60000,
+    "maxContextChars": 140000,
+    "topK": 8,
+    "maxChunksPerPage": 3
+  },
+  "routerModel": "claude-haiku-4-5-20251001",
+  "accessPassword": ""
+}

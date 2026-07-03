@@ -1,0 +1,4 @@
+node_modules/
+*.log
+# Keep config.json OUT of git if you put your API key in it.
+# On Railway use env vars instead and commit config.json with the key field blank.
